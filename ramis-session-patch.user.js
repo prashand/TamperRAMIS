@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         RAMIS Session Patch
 // @namespace    https://github.com/prashand/TamperRAMIS
-// @version      1.0.0
+// @version      1.0.2
 // @description  Auto-patch RAMIS sessionWarning to ping server once, hide dialog, and avoid keeping user logged in forever
 // @match        https://eservices.ird.gov.lk/*
 // @grant        none
@@ -17,17 +17,17 @@
 
     let extended = false;
 
-    // Patch the sessionWarning function
     function patchSessionWarning() {
-        if (!window.sessionWarning) {
+        // Check if the object and function exist
+        if (!window.utility || !window.utility.sessionWarning) {
             console.log("[RAMIS Monkey] sessionWarning not found yet, retrying...");
-            setTimeout(patchSessionWarning, 5000); // try again in 5s
+            setTimeout(patchSessionWarning, 500);
             return;
         }
 
-        const original = window.sessionWarning;
+        const original = window.utility.sessionWarning;
 
-        window.sessionWarning = function() {
+        window.utility.sessionWarning = function() {
             if (!extended) {
                 console.log("[RAMIS Monkey] Auto-pinging server to extend session (~1 hour max)...");
                 $.get(window.keepSessionAlive);
