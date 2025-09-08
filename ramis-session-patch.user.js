@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         RAMIS Session Patch
 // @namespace    https://github.com/prashand/TamperRAMIS
-// @version      1.0.4
+// @version      1.0.5
 // @description  Auto-patch RAMIS sessionWarning to ping server once, hide dialog, and avoid keeping user logged in forever
 // @match        https://eservices.ird.gov.lk/*
 // @grant        none
@@ -11,6 +11,7 @@
 // ==/UserScript==
 
 /**
+ * 
  * window.sessionTimeout = 30;                  // 30 minutes until session expires
  * window.sessionTimeoutWarning = 20;           // 20 minutes until warning dialog shows
  * window.sessionTimeoutWarningTimer;           // the timer that triggers the warning dialog
@@ -22,6 +23,7 @@
  * }
  * 
  * document.ajaxComplete: function()        // calls window.utility.resetSessionTimer
+ * 
  */
 (function() {
     'use strict';
@@ -34,6 +36,32 @@
     const PATCH_RETRY_LIMIT = 30;
     let patch_retry_count = 0;
     
+    const HEARTBEAT_METHOD = true; // set to true to try heartbeat method instead of patching sessionWarning
+
+    if (HEARTBEAT_METHOD) {
+        /**
+         * Alternative method: Use heartbeat to keep session alive
+         * This method may not work if RAMIS has implemented stricter session management
+         */
+        console.log("[RAMIS Monkey] Using heartbeat method to keep session alive");
+        let heartbeat_interval = 5 * 60 * 1000; // 5 minutes
+        let heartbeat_count = (EXTEND_HRS * 60) / 5; // Number of heartbeats in EXTEND_HRS hours
+
+        let heartbeat = setInterval(() => {
+            if (heartbeat_count > 0) {
+                console.log(`[RAMIS Monkey] Heartbeat ping ${heartbeat_count} to keep session alive...`);
+                $.get(window.keepSessionAlive);
+                heartbeat_count--;
+            } else {
+                console.log("[RAMIS Monkey] Maximum heartbeats reached. Stopping heartbeats.");
+                clearInterval(heartbeat);
+            }
+        }, heartbeat_interval);
+
+        return; // Exit the script as heartbeat method is being used
+    }
+
+
     /**
      * Patch utility.sessionWarning() to auto-ping the server and suppress its default behavior (show session exp warning dialog)
      * utility.sessionWarning() is called by the timer set in sessionTimeoutWarningTimer
