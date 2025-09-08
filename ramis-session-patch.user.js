@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         RAMIS Session Patch
 // @namespace    https://github.com/prashand/TamperRAMIS
-// @version      1.0.5
+// @version      1.0.6
 // @description  Auto-patch RAMIS sessionWarning to ping server once, hide dialog, and avoid keeping user logged in forever
 // @match        https://eservices.ird.gov.lk/*
 // @grant        none
@@ -11,19 +11,19 @@
 // ==/UserScript==
 
 /**
- * 
+ *
  * window.sessionTimeout = 30;                  // 30 minutes until session expires
  * window.sessionTimeoutWarning = 20;           // 20 minutes until warning dialog shows
  * window.sessionTimeoutWarningTimer;           // the timer that triggers the warning dialog
  * window.keepSessionAlive = "/path/to/ping";   // the URL to ping to keep the session alive
- * 
+ *
  * window.utility = {
  *      sessionWarning: function()          // shows the session expiry dialog, patched by this script to auto-ping and suppress dialog
  *      resetSessionTimer: function()       // resets the sessionTimeoutWarningTimer (sets a new timer to call sessionWarning in sessionTimeoutWarning mins)
  * }
- * 
+ *
  * document.ajaxComplete: function()        // calls window.utility.resetSessionTimer
- * 
+ *
  */
 (function() {
     'use strict';
@@ -31,19 +31,15 @@
     console.log("[RAMIS Monkey] Initializing...");
 
     const EXTEND_HRS = 6;
-    let extensions = 0;
-    
-    const PATCH_RETRY_LIMIT = 30;
-    let patch_retry_count = 0;
-    
     const HEARTBEAT_METHOD = true; // set to true to try heartbeat method instead of patching sessionWarning
 
-    if (HEARTBEAT_METHOD) {
+    let heartbeat = function() {
         /**
          * Alternative method: Use heartbeat to keep session alive
-         * This method may not work if RAMIS has implemented stricter session management
-         */
-        console.log("[RAMIS Monkey] Using heartbeat method to keep session alive");
+        */
+
+        console.log("[RAMIS Monkey] Setting up heartbeat to keep session alive...");
+
         let heartbeat_interval = 5 * 60 * 1000; // 5 minutes
         let heartbeat_count = (EXTEND_HRS * 60) / 5; // Number of heartbeats in EXTEND_HRS hours
 
@@ -52,21 +48,25 @@
                 console.log(`[RAMIS Monkey] Heartbeat ping ${heartbeat_count} to keep session alive...`);
                 $.get(window.keepSessionAlive);
                 heartbeat_count--;
-            } else {
-                console.log("[RAMIS Monkey] Maximum heartbeats reached. Stopping heartbeats.");
-                clearInterval(heartbeat);
-            }
-        }, heartbeat_interval);
-
-        return; // Exit the script as heartbeat method is being used
+                } else {
+                    console.log("[RAMIS Monkey] Maximum heartbeats reached. Stopping heartbeats.");
+                    clearInterval(heartbeat);
+                }
+            }, heartbeat_interval);
     }
 
+    let patchSessionWarning = function patchSessionWarning() {
+        /**
+         * Patch utility.sessionWarning() to auto-ping the server and suppress its default behavior (show session exp warning dialog)
+         * utility.sessionWarning() is called by the timer set in sessionTimeoutWarningTimer
+        */
 
-    /**
-     * Patch utility.sessionWarning() to auto-ping the server and suppress its default behavior (show session exp warning dialog)
-     * utility.sessionWarning() is called by the timer set in sessionTimeoutWarningTimer
-     */
-    (function patchSessionWarning() {
+        console.log("[RAMIS Monkey] Patching up sessionWarning...");
+
+        const PATCH_RETRY_LIMIT = 30;
+        let patch_retry_count = 0;
+        let extensions = 0;
+
         if (patch_retry_count >= PATCH_RETRY_LIMIT) {
             console.error("[RAMIS Monkey] Failed to find utility or timer after multiple attempts. Aborting patch.");
             return;
@@ -113,5 +113,12 @@
         window.utility.resetSessionTimer();
 
         console.log("[RAMIS Monkey] sessionWarning patched successfully");
-    })();
+    };
+
+    if (HEARTBEAT_METHOD) {
+        heartbeat();
+    } else {
+        patchSessionWarning();
+    }
+
 })();
