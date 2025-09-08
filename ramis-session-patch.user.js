@@ -4,6 +4,7 @@
 // @version      1.0.6
 // @description  Auto-patch RAMIS sessionWarning to ping server once, hide dialog, and avoid keeping user logged in forever
 // @match        https://eservices.ird.gov.lk/*
+// @match        https://www.eservices.ird.gov.lk/*
 // @grant        none
 // @run-at       document-idle
 // @updateURL    https://raw.githubusercontent.com/prashand/TamperRAMIS/main/ramis-session-patch.user.js
