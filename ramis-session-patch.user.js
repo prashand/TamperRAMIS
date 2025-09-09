@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         RAMIS Session Patch
 // @namespace    https://github.com/prashand/TamperRAMIS
-// @version      1.0.6
+// @version      1.0.7
 // @description  Auto-patch RAMIS sessionWarning to ping server once, hide dialog, and avoid keeping user logged in forever
 // @match        https://eservices.ird.gov.lk/*
 // @match        https://www.eservices.ird.gov.lk/*
@@ -17,32 +17,32 @@
  * window.sessionTimeoutWarning = 20;           // 20 minutes until warning dialog shows
  * window.sessionTimeoutWarningTimer;           // the timer that triggers the warning dialog
  * window.keepSessionAlive = "/path/to/ping";   // the URL to ping to keep the session alive
- *
- * window.utility = {
- *      sessionWarning: function()          // shows the session expiry dialog, patched by this script to auto-ping and suppress dialog
- *      resetSessionTimer: function()       // resets the sessionTimeoutWarningTimer (sets a new timer to call sessionWarning in sessionTimeoutWarning mins)
- * }
- *
- * document.ajaxComplete: function()        // calls window.utility.resetSessionTimer
- *
- */
+*
+* window.utility = {
+    *      sessionWarning: function()          // shows the session expiry dialog, patched by this script to auto-ping and suppress dialog
+    *      resetSessionTimer: function()       // resets the sessionTimeoutWarningTimer (sets a new timer to call sessionWarning in sessionTimeoutWarning mins)
+    * }
+*
+* document.ajaxComplete: function()        // calls window.utility.resetSessionTimer
+*
+*/
 (function() {
     'use strict';
 
-    console.log("[RAMIS Monkey] Initializing...");
+    const version = "1.0.7";
 
     const EXTEND_HRS = 6;
     const HEARTBEAT_METHOD = true; // set to true to try heartbeat method instead of patching sessionWarning
 
-    let heartbeat = function() {
+    let setUpHeartbeat = function() {
         /**
-         * Alternative method: Use heartbeat to keep session alive
+         * Use heartbeats to keep session alive
         */
 
         console.log("[RAMIS Monkey] Setting up heartbeat to keep session alive...");
 
-        let heartbeat_interval = 5 * 60 * 1000; // 5 minutes
-        let heartbeat_count = (EXTEND_HRS * 60) / 5; // Number of heartbeats in EXTEND_HRS hours
+        let heartbeat_interval = 10 * 60 * 1000; // 10 minutes
+        let heartbeat_count = (EXTEND_HRS * 60) / 10; // Number of heartbeats in EXTEND_HRS hours
 
         let heartbeat = setInterval(() => {
             if (heartbeat_count > 0) {
@@ -59,6 +59,7 @@
     let patchSessionWarning = function patchSessionWarning() {
         /**
          * Patch utility.sessionWarning() to auto-ping the server and suppress its default behavior (show session exp warning dialog)
+         * to keep the session alive.
          * utility.sessionWarning() is called by the timer set in sessionTimeoutWarningTimer
         */
 
@@ -75,7 +76,7 @@
 
         if (!window.utility) {
             // Check if the utility object is available and retry if not
-            console.log("[RAMIS Monkey] utility not found yet, retrying...");
+            console.log("[RAMIS Monkey] Utility not found yet, retrying...");
             setTimeout(patchSessionWarning, 1000);
             patch_retry_count++;
             return;
@@ -116,8 +117,19 @@
         console.log("[RAMIS Monkey] sessionWarning patched successfully");
     };
 
+    console.log(`[RAMIS Monkey] ${version} Initializing...`);
+    if (
+        window.location.pathname == "/Authentication/LoginEntry"
+        || window.location.pathname == "/Authentication/LoginPersonal"
+        || window.location.pathname == "/Authentication/LoginForCompany"
+        || window.location.pathname == "/Authentication/LoginForClient"
+    ) {
+        console.log("[RAMIS Monkey] Not logged in, not patching session management.");
+        return;
+    }
+
     if (HEARTBEAT_METHOD) {
-        heartbeat();
+        setUpHeartbeat();
     } else {
         patchSessionWarning();
     }
